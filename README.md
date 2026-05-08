@@ -20,7 +20,7 @@ Lower auto-compact threshold (320K) + structured HANDOFF for session continuity.
 
 ```bash
 # 1. Add marketplace and install
-/plugin marketplace add github.com/arthur-hsu/claude-compact
+/plugin marketplace add arthur-hsu/claude-compact
 /plugin install claude-compact
 
 # 2. Set auto-compact threshold (REQUIRED — see note above)
