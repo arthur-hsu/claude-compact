@@ -36,13 +36,6 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc   # or ~/.zshrc
 # 4. Restart Claude Code session
 ```
 
-### From Local Clone
-
-```bash
-git clone git@github.com:arthur-hsu/claude-compact.git
-/plugin marketplace add "$(pwd)/claude-compact"
-/plugin install claude-compact
-```
 
 ## Uninstall
 
