@@ -1,0 +1,277 @@
+#!/usr/bin/env bash
+# claude-compact — print Claude Code auto-compact summaries for the current
+# cwd, plus the matching PreCompact HANDOFF file written by
+# hooks/pre-compact.mjs (HANDOFF-<sid[:8]>.md under the session's cwd .claude/).
+#
+# Resolves the current working directory to the matching transcript directory
+# under ~/.claude/projects/<slug>/ and extracts entries flagged
+# `isCompactSummary: true`.
+#
+# Usage: claude-compact [-l] [-a] [-n N] [-s SESSION_ID] [-p] [-c|-f] [-d] [-h]
+
+set -u
+shopt -s nullglob
+
+PROJECTS_ROOT="${CLAUDE_PROJECTS_ROOT:-$HOME/.claude/projects}"
+
+usage() {
+	cat <<'EOF'
+Usage: claude-compact [options]
+
+  Default: print the LAST compact summary of the most recent session
+           that has any compact summary, for the current cwd.
+
+Options:
+  -l            List sessions for current cwd that contain compact summaries
+                (count + filename, newest first).
+  -a            Print ALL compact summaries from the chosen session
+                (chronological).
+  -n N          Print the last N compact summaries (default 1).
+                Ignored when -a is set.
+  -s SESSION    Use a specific session id (basename of the .jsonl).
+                Default: newest session that has compact summaries.
+  -p            Print only the resolved jsonl path; do not extract.
+  -c            Compact summary only (skip handoff).
+  -f            Handoff file only (skip compact summary).
+  -d            Diagnostic: report overlap between compact summary and
+                handoff (full + 6-word-window). Use to verify the two
+                files stay orthogonal after PreCompact hook changes.
+  -h            Show this help.
+
+Default output order: compact summary first, then HANDOFF file
+(<session-cwd>/.claude/HANDOFF-<sid[:8]>.md).
+
+Resolves cwd → ~/.claude/projects/<slug>/<session>.jsonl using Claude Code's
+slug rule (every non-alphanumeric char → '-').
+EOF
+}
+
+# Embedded python3 overlap analyzer. Tokenizes both texts (lowercased,
+# whitespace-collapsed). Reports any handoff line whose 6-word window
+# appears verbatim in the compact summary.
+overlap_diff() {
+	local jsonl="$1" handoff="$2"
+	python3 - "$jsonl" "$handoff" <<'PYEOF'
+import sys, re, json
+
+def normalize(t):
+    return re.sub(r'\s+', ' ', t.lower()).strip()
+
+def extract_compact_text(jsonl_path):
+    chunks = []
+    with open(jsonl_path, 'r', encoding='utf-8', errors='replace') as f:
+        for line in f:
+            try:
+                evt = json.loads(line)
+            except Exception:
+                continue
+            if not evt.get('isCompactSummary'):
+                continue
+            content = evt.get('message', {}).get('content', '')
+            if isinstance(content, str):
+                chunks.append(content)
+            elif isinstance(content, list):
+                for p in content:
+                    if isinstance(p, dict) and p.get('type') == 'text':
+                        chunks.append(p.get('text', ''))
+    return '\n'.join(chunks)
+
+WORDS = 6
+jsonl_path, handoff_path = sys.argv[1], sys.argv[2]
+compact = normalize(extract_compact_text(jsonl_path))
+try:
+    handoff = open(handoff_path, encoding='utf-8', errors='replace').read()
+except FileNotFoundError:
+    print(f"handoff not found: {handoff_path}", file=sys.stderr)
+    sys.exit(1)
+
+full_overlap, partial = [], []
+for line in handoff.split('\n'):
+    raw = line.strip()
+    if not raw or raw.startswith('<!--') or raw.startswith('---'):
+        continue
+    norm = normalize(raw)
+    if len(norm) < 40:
+        continue
+    if norm in compact:
+        full_overlap.append(raw[:140])
+        continue
+    words = norm.split()
+    matched = None
+    for i in range(len(words) - WORDS + 1):
+        chunk = ' '.join(words[i:i + WORDS])
+        if chunk in compact:
+            matched = chunk
+            break
+    if matched:
+        partial.append((raw[:140], matched[:90]))
+
+print(f"=== Overlap diagnostic (handoff vs compact summary) ===")
+print(f"compact chars (normalized): {len(compact)}")
+print(f"handoff chars (raw):        {len(handoff)}")
+print()
+print(f"FULL overlap (handoff line wholly in compact): {len(full_overlap)}")
+for l in full_overlap:
+    print(f"  OVERLAP: {l}")
+print()
+print(f"PARTIAL overlap ({WORDS}-word window match):    {len(partial)}")
+for l, m in partial:
+    print(f"  PARTIAL: {l}")
+    print(f"           match: {m}")
+print()
+ratio = (len(full_overlap) + 0.5 * len(partial))
+print(f"Heuristic redundancy score: {ratio:.1f}")
+print("  (≤2 = good orthogonality; ≥10 = schema discipline slipping)")
+PYEOF
+}
+
+# Same rule as hooks/pre-compact.mjs::shortSessionId
+short_session_id() {
+	local cleaned="${1//[^A-Za-z0-9]/}"
+	[[ -z "$cleaned" ]] && cleaned=unknown
+	printf '%s' "${cleaned:0:8}"
+}
+
+# Resolve handoff path for a given session jsonl. Reads the most recent
+# `.cwd` field from the jsonl (sessions can roam between cwds; the hook
+# writes under whichever cwd was active at compact time).
+resolve_handoff_path() {
+	local file="$1" sid_short cwd
+	local basename="${file##*/}"
+	sid_short=$(short_session_id "${basename%.jsonl}")
+	cwd=$(jq -r 'select(.cwd != null) | .cwd' "$file" 2>/dev/null | tail -n1)
+	[[ -z "$cwd" || "$cwd" == "null" ]] && return 1
+	printf '%s/.claude/HANDOFF-%s.md' "$cwd" "$sid_short"
+}
+
+# Convert an absolute path to Claude Code's project slug.
+cwd_to_slug() {
+	printf '%s' "${1//[^A-Za-z0-9]/-}"
+}
+
+# Newest-first list of jsonl files in $1 that contain at least one
+# isCompactSummary entry. Uses stat for mtime sort (works on macOS BSD stat).
+sessions_with_compact() {
+	local dir="$1" f
+	for f in "$dir"/*.jsonl; do
+		[[ -f "$f" ]] || continue
+		grep -ql '"isCompactSummary":true' -- "$f" 2>/dev/null || continue
+		stat -f '%m %N' "$f" 2>/dev/null
+	done | sort -rn | sed 's/^[0-9]* //'
+}
+
+main() {
+	local list=0 all=0 print_path=0 diff_mode=0
+	local count=1
+	local session=""
+	local mode=both # both | compact | handoff
+	local opt
+
+	while getopts "lan:s:pcdfh" opt; do
+		case $opt in
+		l) list=1 ;;
+		a) all=1 ;;
+		n) count="$OPTARG" ;;
+		s) session="$OPTARG" ;;
+		p) print_path=1 ;;
+		c) mode=compact ;;
+		f) mode=handoff ;;
+		d) diff_mode=1 ;;
+		h)
+			usage
+			return 0
+			;;
+		*)
+			usage
+			return 2
+			;;
+		esac
+	done
+
+	local slug dir
+	slug=$(cwd_to_slug "$PWD")
+	dir="$PROJECTS_ROOT/$slug"
+
+	if [[ ! -d "$dir" ]]; then
+		>&2 printf 'claude-compact: no transcript directory for cwd: %s\n' "$dir"
+		return 1
+	fi
+
+	if ((list)); then
+		local any=0
+		while IFS= read -r f; do
+			[[ -z "$f" ]] && continue
+			local n
+			n=$(grep -c '"isCompactSummary":true' -- "$f" 2>/dev/null)
+			printf '%4d  %s\n' "$n" "${f##*/}"
+			any=1
+		done < <(sessions_with_compact "$dir")
+		((any)) || >&2 printf 'claude-compact: no sessions with compact summaries in %s\n' "$dir"
+		return 0
+	fi
+
+	local file=""
+	if [[ -n "$session" ]]; then
+		file="$dir/${session%.jsonl}.jsonl"
+		if [[ ! -f "$file" ]]; then
+			>&2 printf 'claude-compact: session not found: %s\n' "$file"
+			return 1
+		fi
+	else
+		file=$(sessions_with_compact "$dir" | head -n1)
+		if [[ -z "$file" ]]; then
+			>&2 printf 'claude-compact: no compact summary found under %s\n' "$dir"
+			return 1
+		fi
+	fi
+
+	if ((print_path)); then
+		printf '%s\n' "$file"
+		return 0
+	fi
+
+	if ((diff_mode)); then
+		local handoff
+		if ! handoff=$(resolve_handoff_path "$file") || [[ ! -f "$handoff" ]]; then
+			>&2 printf 'claude-compact -d: handoff file missing for session %s\n' "${file##*/}"
+			return 1
+		fi
+		overlap_diff "$file" "$handoff"
+		return 0
+	fi
+
+	>&2 printf '# session: %s\n' "${file##*/}"
+	>&2 printf '# file:    %s\n' "$file"
+
+	if [[ "$mode" == "both" || "$mode" == "compact" ]]; then
+		if ((all)); then
+			jq -r 'select(.isCompactSummary==true)
+             | "\n===== compact @ \(.timestamp) =====\n" + (.message.content // "" | tostring)' \
+				"$file"
+		else
+			jq -sr --argjson n "$count" '
+        [ .[] | select(.isCompactSummary==true) ]
+        | (.[-$n:] // [])
+        | .[]
+        | "\n===== compact @ \(.timestamp) =====\n" + (.message.content // "" | tostring)
+      ' "$file"
+		fi
+	fi
+
+	if [[ "$mode" == "both" || "$mode" == "handoff" ]]; then
+		local handoff
+		if handoff=$(resolve_handoff_path "$file"); then
+			if [[ -f "$handoff" ]]; then
+				printf '\n'
+				printf '===== handoff: %s =====\n' "$handoff"
+				cat -- "$handoff"
+			else
+				>&2 printf '# handoff: %s (not present)\n' "$handoff"
+			fi
+		else
+			>&2 printf '# handoff: could not resolve cwd from session jsonl\n'
+		fi
+	fi
+}
+
+main "$@"
