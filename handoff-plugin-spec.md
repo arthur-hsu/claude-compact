@@ -93,7 +93,7 @@ claude-compact/
 ```json
 {
   "name": "claude-compact",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Auto-compact HANDOFF hooks: structured state preserved before compaction, selectively reloaded after. Zero user interaction required.",
   "author": {
     "name": "arthur"
@@ -200,9 +200,9 @@ Fires after every compact (both auto and manual, since `matcher` is unset).
 
 ### 5.2 Behavior
 
-1. Find the most recent HANDOFF file in `<cwd>/.claude/`:
-   - `HANDOFF.md` (user-written, if exists) takes priority
-   - Otherwise, newest `HANDOFF-{8-char}.md` by mtime
+1. Find the auto-written HANDOFF file in `<cwd>/.claude/`:
+   - Prefer `HANDOFF-{8-char}.md` matching the current hook `session_id`
+   - Otherwise, fall back to newest `HANDOFF-{8-char}.md` by mtime
 2. Extract only the **orthogonal sections** (not the full file):
    - YAML frontmatter (env-state ground truth)
    - `## Decisions`
@@ -268,7 +268,7 @@ Written in **bash** (not zsh). Uses `stat -f '%m %N'` for mtime sorting (macOS B
 
 ```bash
 # 1. Register marketplace and install
-/plugin marketplace add /Users/arthur/Workdir/claude-compact
+/plugin marketplace add <marketplace-url>
 /plugin install claude-compact
 
 # 2. Verify CLAUDE_CODE_AUTO_COMPACT_WINDOW is set in settings.json:
@@ -276,7 +276,7 @@ jq '.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW' ~/.claude/settings.json
 # → "320000"
 
 # 3. (Optional) Add claude-compact CLI to PATH:
-ln -s /Users/arthur/Workdir/claude-compact/bin/claude-compact ~/.local/bin/claude-compact
+ln -s <plugin-path>/bin/claude-compact ~/.local/bin/claude-compact
 
 # 4. Restart Claude Code session
 ```

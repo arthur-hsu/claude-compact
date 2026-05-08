@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // PostCompact hook (replaces postcompact-handoff-reload.sh).
 //
-// After auto-compact finishes, locate the most recent HANDOFF in
+// After auto-compact finishes, locate the matching HANDOFF-<session>.md in
 // <cwd>/.claude/ and inject ONLY the orthogonal-to-compact sections
 // (Decisions / Ruled Out / Constraints / Next Action) plus the YAML
 // frontmatter (env-state ground truth). The full file path is surfaced
@@ -31,13 +31,20 @@ function readStdin() {
   });
 }
 
-// Proactive .claude/HANDOFF.md (user-written via /handoff skill) wins
-// over auto-written HANDOFF-<sid>.md files. Among auto files, newest mtime.
-function findHandoff(cwd) {
+function shortSessionId(rawId) {
+  const cleaned = String(rawId || '').replace(/[^A-Za-z0-9]/g, '');
+  return (cleaned || 'unknown').slice(0, 8);
+}
+
+// Prefer the current session's auto-written HANDOFF file. If the hook input
+// lacks a session id, fall back to newest HANDOFF-*.md by mtime.
+function findHandoff(cwd, rawSessionId) {
   const dir = join(cwd, '.claude');
   if (!existsSync(dir)) return null;
-  const proactive = join(dir, 'HANDOFF.md');
-  if (existsSync(proactive)) return proactive;
+  if (rawSessionId) {
+    const exact = join(dir, `HANDOFF-${shortSessionId(rawSessionId)}.md`);
+    if (existsSync(exact)) return exact;
+  }
   let best = null;
   let entries;
   try { entries = readdirSync(dir); } catch { return null; }
@@ -98,7 +105,7 @@ function extractSelectedSections(content, wantedLowercase) {
     try { input = JSON.parse(raw || '{}'); } catch {}
     const cwd = input.cwd || process.cwd();
 
-    const handoffPath = findHandoff(cwd);
+    const handoffPath = findHandoff(cwd, input.session_id);
     if (!handoffPath) { process.exit(0); return; }
 
     const content = readFileSync(handoffPath, 'utf8');

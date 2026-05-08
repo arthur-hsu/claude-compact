@@ -344,7 +344,7 @@ last_failed_bash:    # only present when last Bash result was is_error: true
 ---
 session: "0d2ef14b"
 generated_at: "2026-05-04T04:43:10.077Z"
-transcript: "/Users/arthur/.claude/projects/-Users-.../session.jsonl"
+transcript: "~/.claude/projects/<project-slug>/<session-id>.jsonl"
 env:
   branch: "feat/totp-first-step-up"
   head: "84096545"
@@ -447,7 +447,7 @@ Claude Code v2.1.117+ aligns Opus 4.7 session auto-compact default to ~1M window
 
 ### 7.1 Plugin-Based Architecture
 
-The PreCompact and PostCompact hooks are now packaged as the `claude-compact` plugin at `/Users/arthur/Workdir/claude-compact/`. Plugin structure:
+The PreCompact and PostCompact hooks are now packaged as the `claude-compact` plugin at `<plugin-repo-path>`. Plugin structure:
 
 ```
 claude-compact/
@@ -508,7 +508,7 @@ Written as YAML frontmatter at the top of HANDOFF.
 
 ### 7.3 `post-compact.mjs` (Added 2026-05-04)
 
-PostCompact hook receives stdin JSON, reads cwd, finds the newest `HANDOFF-*.md` in `<cwd>/.claude/` (single source since 2026-05-05; no more `HANDOFF.md` primary file). **Does not paste the entire file**, only extracts:
+PostCompact hook receives stdin JSON, reads cwd, finds the current session's `HANDOFF-{shortId}.md` in `<cwd>/.claude/` (falling back to newest `HANDOFF-*.md` only when `session_id` is unavailable; single source since 2026-05-05; no more `HANDOFF.md` primary file). **Does not paste the entire file**, only extracts:
 - Full YAML frontmatter (env-state ground truth)
 - 4 H2 sections: `Decisions` / `Ruled Out` / `Constraints` / `Next Action`
 
@@ -520,7 +520,7 @@ Full source: `hooks/post-compact.mjs` (~110 lines).
 
 ```bash
 # 1. Install the plugin
-/plugin marketplace add /Users/arthur/Workdir/claude-compact
+/plugin marketplace add <marketplace-url>
 /plugin install claude-compact
 
 # 2. Verify CLAUDE_CODE_AUTO_COMPACT_WINDOW is set
@@ -528,7 +528,7 @@ jq '.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW' ~/.claude/settings.json
 # → "320000"
 
 # 3. (Optional) Add claude-compact CLI to PATH
-ln -s /Users/arthur/Workdir/claude-compact/bin/claude-compact ~/.local/bin/claude-compact
+ln -s <plugin-path>/bin/claude-compact ~/.local/bin/claude-compact
 
 # 4. Restart Claude Code session
 ```
@@ -775,8 +775,8 @@ The CLI tool `bin/claude-compact` (symlinked to `~/.local/bin/claude-compact` or
 Converts current `$PWD` to a transcript directory name using Claude Code's slug rule (non-alphanumeric → `-`), e.g.:
 
 ```
-$PWD = /Users/arthur/Workdir/locus-locus/.worktrees/local-iam
-slug  = -Users-arthur-Workdir-locus-locus--worktrees-local-iam
+$PWD = <project-path>/.worktrees/<worktree-name>
+slug  = -project-path--worktrees-worktree-name
 transcript dir = ~/.claude/projects/<slug>/
 ```
 
@@ -786,8 +786,8 @@ Finds the newest jsonl with `isCompactSummary: true` entries in that directory; 
 
 ```bash
 claude-compact          # Default: print last compact summary + handoff for newest session in current cwd
-claude-compact -C       # Compact summary only (message.content of isCompactSummary entries in jsonl)
-claude-compact -H       # Handoff file only
+claude-compact -c       # Compact summary only (message.content of isCompactSummary entries in jsonl)
+claude-compact -f       # Handoff file only
 claude-compact -n 3     # Last 3 compact summaries (observe compression history)
 claude-compact -a       # ALL compact summaries for the session (full chronology)
 claude-compact -l       # List all sessions in current cwd that have compact summaries (count + filename)
@@ -837,7 +837,7 @@ Corresponding to this spec: **there is currently no closed-loop validation** —
 
 ```
 SessionStart hook
-  → Extract 3 micro-eval questions from HANDOFF.md:
+  → Extract 3 micro-eval questions from HANDOFF-{shortId}.md:
     Q1: What was the previous session's Next Action?
     Q2: Which approaches have been ruled out?
     Q3: What caused the last Bash failure?
@@ -885,7 +885,7 @@ If during this observation period "Claude re-does ruled-out approaches" decrease
 worker-service.cjs (background, persistent)
   ↓ wraps tool call + result as <observed_from_primary_session> XML
 [Observer sub-session]
-  ← another Claude running in ~/.claude/projects/-Users-arthur--claude-mem-observer-sessions/
+  ← another Claude running in <observer-sessions-dir>
   → judges each observation: is this worth remembering?
   → if yes, outputs <observation>...</observation> written to persistent KB
 [Persistent KB]
@@ -895,7 +895,7 @@ worker-service hook injects claude-code context
 [New primary session starts with historical context]
 ```
 
-Field measurement: local `~/.claude/projects/-Users-arthur--claude-mem-observer-sessions/` has accumulated 122 observer session jsonls.
+Field measurement: observer session dir has accumulated 122 observer session jsonls.
 
 ### 16.3 Installed Hooks (Auto-Registered by Plugin)
 
@@ -935,7 +935,7 @@ Field measurement: local `~/.claude/projects/-Users-arthur--claude-mem-observer-
 ### 16.6 Known Interactions / Caveats
 
 1. **AGENTS.md auto-injection:** claude-mem injects `AGENTS.md` into context as agent behavior hints. **Before commit, must `git checkout AGENTS.md` to discard this injection** (already marked as a fixed step in the user's commit workflow, per this session's ruled-out record).
-2. **Observer sessions count toward transcript directories:** `~/.claude/projects/-Users-arthur--claude-mem-observer-sessions/` sits alongside regular cwd-slug directories, but `claude-compact` CLI won't treat it as a main session — observer sessions have no user-facing compact flow.
+2. **Observer sessions count toward transcript directories:** observer session dir sits alongside regular cwd-slug directories, but `claude-compact` CLI won't treat it as a main session — observer sessions have no user-facing compact flow.
 3. **Relationship with PreCompact hook:** claude-mem observes hooks running at PostToolUse; PreCompact hook runs before compact. The two **don't conflict** (different events, different workers), but HANDOFF written by PreCompact will also be observed by claude-mem and enter the KB — meaning HANDOFF content also becomes part of long-term memory.
 4. **`/ctx-purge` doesn't affect claude-mem KB:** context-mode's purge doesn't touch claude-mem's SQLite. To clear claude-mem's own memories, use its plugin command (if available) or directly delete the KB file.
 
@@ -943,7 +943,7 @@ Field measurement: local `~/.claude/projects/-Users-arthur--claude-mem-observer-
 
 | Scenario | Use |
 |---|---|
-| "What were we doing before the auto-compact THIS session" | PostCompact has injected schema state; if insufficient, `claude-compact -H` or `cat .claude/HANDOFF-*.md` (L3) |
+| "What were we doing before the auto-compact THIS session" | PostCompact has injected schema state; if insufficient, `claude-compact -f` or `cat .claude/HANDOFF-*.md` (L3) |
 | "Keep raw output from eating tokens" | `ctx_*` tools (L0 context-mode) |
 | "Two weeks ago in another repo, how did we solve X" | `mem-search` (L4 claude-mem) |
 | "Compile all my auth-related experience" | `knowledge-agent` (L4 claude-mem) |

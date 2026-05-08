@@ -80,7 +80,7 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc   # or ~/.zshrc
 
 ## Components
 
-- `hooks/pre-compact.mjs` — PreCompact: transcript digest → Sonnet 4.6 → HANDOFF.md
+- `hooks/pre-compact.mjs` — PreCompact: transcript digest → Sonnet 4.6 → HANDOFF-<sid>.md
 - `hooks/post-compact.mjs` — PostCompact: selective HANDOFF reload into additionalContext
 - `bin/claude-compact` — CLI: read compact summaries + HANDOFF from completed sessions
 

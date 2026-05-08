@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// PreCompact hook (matcher: "auto"): writes <cwd>/.claude/HANDOFF.md before
-// auto-compaction so the next session can resume without losing semantic state.
+// PreCompact hook (matcher: "auto"): writes
+// <cwd>/.claude/HANDOFF-<session>.md before auto-compaction so the next
+// session can resume without losing semantic state.
 //
 // Path A (preferred): pre-digest the JSONL transcript in Node (cap ~80k chars),
 // pipe digest+instruction to `claude -p --model claude-sonnet-4-6` (cost cap

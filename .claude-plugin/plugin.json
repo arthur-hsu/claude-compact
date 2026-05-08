@@ -1,6 +1,6 @@
 {
   "name": "claude-compact",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Auto-compact HANDOFF hooks: structured state preserved before compaction, selectively reloaded after. Zero user interaction required.",
   "author": {
     "name": "arthur"
