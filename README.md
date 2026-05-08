@@ -27,8 +27,11 @@ Lower auto-compact threshold (320K) + structured HANDOFF for session continuity.
 jq '.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW' ~/.claude/settings.json
 # → should be "320000"
 
-# 3. (Optional) Add the CLI to PATH
-ln -s <plugin-dir>/bin/claude-compact ~/.local/bin/claude-compact
+# 3. (Optional) Download the CLI to ~/.local/bin
+curl -o ~/.local/bin/claude-compact https://raw.githubusercontent.com/arthur-hsu/claude-compact/master/bin/claude-compact
+chmod +x ~/.local/bin/claude-compact
+# Ensure ~/.local/bin is on PATH:
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc   # or ~/.zshrc
 
 # 4. Restart Claude Code session
 ```
