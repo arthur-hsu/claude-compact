@@ -16,19 +16,29 @@ Lower auto-compact threshold (320K) + structured HANDOFF for session continuity.
 
 ## Install
 
+### From GitHub
+
 ```bash
-# 1. Register marketplace and install
-/plugin marketplace add /Users/arthur/Workdir/claude-compact
+# 1. Add marketplace and install
+/plugin marketplace add github.com/arthur-hsu/claude-compact
 /plugin install claude-compact
 
-# 2. Verify the env var is set in settings.json:
+# 2. Set auto-compact threshold (REQUIRED — see note above)
 jq '.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW' ~/.claude/settings.json
-# → "320000"
+# → should be "320000"
 
-# 3. (Optional) Add the CLI to PATH:
-ln -s /Users/arthur/Workdir/claude-compact/bin/claude-compact ~/.local/bin/claude-compact
+# 3. (Optional) Add the CLI to PATH
+ln -s <plugin-dir>/bin/claude-compact ~/.local/bin/claude-compact
 
 # 4. Restart Claude Code session
+```
+
+### From Local Clone
+
+```bash
+git clone git@github.com:arthur-hsu/claude-compact.git
+/plugin marketplace add "$(pwd)/claude-compact"
+/plugin install claude-compact
 ```
 
 ## Uninstall
