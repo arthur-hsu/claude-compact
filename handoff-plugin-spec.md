@@ -77,7 +77,8 @@ Findings from https://github.com/anthropics/claude-code/issues:
 ```
 claude-compact/
 ├── .claude-plugin/
-│   └── plugin.json
+│   ├── plugin.json
+│   └── marketplace.json
 ├── hooks/
 │   ├── hooks.json             # Hook declarations
 │   ├── pre-compact.mjs        # PreCompact: transcript digest → HANDOFF
@@ -92,9 +93,11 @@ claude-compact/
 ```json
 {
   "name": "claude-compact",
-  "version": "0.6.0",
-  "description": "Lower auto-compact threshold (320K) + structured HANDOFF for session continuity. Zero user interaction required.",
-  "author": "arthur"
+  "version": "0.6.1",
+  "description": "Auto-compact HANDOFF hooks: structured state preserved before compaction, selectively reloaded after. Zero user interaction required.",
+  "author": {
+    "name": "arthur"
+  }
 }
 ```
 
@@ -315,7 +318,7 @@ If you previously had PreCompact/PostCompact hooks in `~/.claude/settings.json` 
 |---|---|---|
 | Install | Edit settings.json manually | `/plugin install` |
 | Uninstall | Edit settings.json manually | `/plugin uninstall` |
-| Versioning | None | `plugin.json` version field |
+| Versioning | None | `.claude-plugin/plugin.json` version field |
 | Distribution | Manual copy | Marketplace / git clone |
 | Hook paths | Hardcoded absolute paths | `${CLAUDE_PLUGIN_ROOT}` portable |
 | Conflict detection | None | Merge semantics documented |
