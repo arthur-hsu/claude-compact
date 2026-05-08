@@ -21,9 +21,15 @@ Lower auto-compact threshold (320K) + structured HANDOFF for session continuity.
 ```bash
 # 1. Add marketplace and install
 /plugin marketplace add arthur-hsu/claude-compact
-/plugin install claude-compact
+/plugin install claude-compact@arthur-plugins
 
 # 2. Set auto-compact threshold (REQUIRED — see note above)
+tmp="$(mktemp)"
+
+jq '.env = (.env // {}) | .env.CLAUDE_CODE_AUTO_COMPACT_WINDOW = "320000"' \
+  ~/.claude/settings.json > "$tmp" && mv "$tmp" ~/.claude/settings.json
+
+# Check config
 jq '.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW' ~/.claude/settings.json
 # → should be "320000"
 
@@ -40,7 +46,7 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc   # or ~/.zshrc
 ## Uninstall
 
 ```bash
-/plugin uninstall claude-compact
+/plugin uninstall claude-compact@arthur-plugins
 ```
 
 ## Plugin vs raw hooks

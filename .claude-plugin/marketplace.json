@@ -1,0 +1,13 @@
+{
+  "name": "arthur-plugins",
+  "owner": {
+    "name": "arthur-hsu"
+  },
+  "plugins": [
+    {
+      "name": "claude-compact",
+      "description": "Auto-compact HANDOFF hooks — structured state preserved before compaction, selectively reloaded after. Zero user interaction required.",
+      "source": "."
+    }
+  ]
+}
