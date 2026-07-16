@@ -25,7 +25,7 @@ The goal is not to replace `/compact`. The goal is to make automatic compaction 
 
 ## What it does
 
-1. **PreCompact hook** (best-effort) — before auto-compact fires, extracts structured state from the transcript via Sonnet 4.6 and writes `<cwd>/.claude/HANDOFF-<sid>.md`. Falls back to mechanical extract if Sonnet fails.
+1. **PreCompact hook** (best-effort) — before auto-compact fires, extracts structured state from the transcript via Sonnet 5 and writes `<cwd>/.claude/HANDOFF-<sid>.md`. Falls back to mechanical extract if Sonnet fails.
 2. **PostCompact hook** — selectively reloads the orthogonal sections (Decisions, Ruled Out, Constraints, Next Action) + YAML frontmatter into `additionalContext` so the compacted session retains structured state.
 3. **claude-compact CLI** — read compact summaries + HANDOFF files from the terminal (post-session review).
 
@@ -80,7 +80,7 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc   # or ~/.zshrc
 
 ## Components
 
-- `hooks/pre-compact.mjs` — PreCompact: transcript digest → Sonnet 4.6 → HANDOFF-<sid>.md
+- `hooks/pre-compact.mjs` — PreCompact: transcript digest → Sonnet 5 → HANDOFF-<sid>.md
 - `hooks/post-compact.mjs` — PostCompact: selective HANDOFF reload into additionalContext
 - `bin/claude-compact` — CLI: read compact summaries + HANDOFF from completed sessions
 

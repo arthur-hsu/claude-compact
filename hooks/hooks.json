@@ -1,5 +1,5 @@
 {
-  "description": "PreCompact: write structured HANDOFF via Sonnet 4.6 (mechanical fallback on failure). PostCompact: selectively reload orthogonal sections into additionalContext.",
+  "description": "PreCompact: write structured HANDOFF via Sonnet 5 (mechanical fallback on failure). PostCompact: selectively reload orthogonal sections into additionalContext.",
   "hooks": {
     "PreCompact": [
       {
@@ -9,7 +9,7 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-compact.mjs\"",
             "timeout": 120,
-            "statusMessage": "Writing HANDOFF-{shortId}.md before auto-compact (Sonnet 4.6, ≤90s)..."
+            "statusMessage": "Writing HANDOFF-{shortId}.md before auto-compact (Sonnet 5, ≤90s)..."
           }
         ]
       }

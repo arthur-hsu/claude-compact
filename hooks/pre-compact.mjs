@@ -4,7 +4,7 @@
 // session can resume without losing semantic state.
 //
 // Path A (preferred): pre-digest the JSONL transcript in Node (cap ~80k chars),
-// pipe digest+instruction to `claude -p --model claude-sonnet-4-6` (cost cap
+// pipe digest+instruction to `claude -p --model claude-sonnet-5` (cost cap
 // $1.50, internal 90s timeout). Sonnet returns a structured HANDOFF.
 // Path B (fallback): on timeout / non-zero exit / empty stdout, emit a
 // mechanical extract from the transcript.
@@ -438,7 +438,7 @@ function runHeadlessClaude(digest) {
   return new Promise((resolve) => {
     const args = [
       '-p',
-      '--model', 'claude-sonnet-4-6',
+      '--model', 'claude-sonnet-5',
       '--max-turns', '1',
       '--max-budget-usd', '1.50',
       '--input-format', 'text',
@@ -538,7 +538,7 @@ function runHeadlessClaude(digest) {
       const digest = buildDigest({ ...parsed, claudeMd });
       const result = await runHeadlessClaude(digest);
       if (result.ok) {
-        body = `${frontmatter}\n${header}\n# HANDOFF (Sonnet 4.6 schema)\n\n${RESUME_BANNER}\n\n${result.output}\n`;
+        body = `${frontmatter}\n${header}\n# HANDOFF (Sonnet 5 schema)\n\n${RESUME_BANNER}\n\n${result.output}\n`;
       } else {
         body = `${frontmatter}\n${header}\n${RESUME_BANNER}\n\n<!-- Sonnet path failed: ${result.error} -->\n${mechanicalHandoff(parsed, transcriptPath)}\n`;
       }
