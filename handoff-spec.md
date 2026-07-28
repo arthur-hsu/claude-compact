@@ -184,7 +184,7 @@ Field testing showed the proactive path (Claude writes HANDOFF.md at 150K/250K) 
 
 - L0 context-mode: source reduction (highest ROI)
 - L2 Stop hook: soft reminder, user decides `/compact` / `/clear` (optional)
-- L3 PreCompact hook: auto-compact fires → auto-write `HANDOFF-{shortId}.md` (Sonnet 4.6 digest)
+- L3 PreCompact hook: auto-compact fires → auto-write `HANDOFF-{shortId}.md` (Sonnet digest)
 - L4 claude-mem: cross-session episodic memory
 
 With `CLAUDE_CODE_AUTO_COMPACT_WINDOW=300000`, L3 fires at 300K — only 50K overshoot past the 250K redline, Sonnet digest still in usable quality zone. Lost capability: proactively writing high-quality handoff before `/clear` topic switch (since `/clear` doesn't trigger PreCompact). Acceptable cost.
@@ -208,7 +208,7 @@ With `CLAUDE_CODE_AUTO_COMPACT_WINDOW=300000`, L3 fires at 300K — only 50K ove
 
 | Filename | Trigger | Writer | Role |
 |---|---|---|---|
-| `.claude/HANDOFF-{shortId}.md` | PreCompact hook, auto-compact fire | Sonnet 4.6 from transcript digest | Auto-compact fallback |
+| `.claude/HANDOFF-{shortId}.md` | PreCompact hook, auto-compact fire | Sonnet from transcript digest | Auto-compact fallback |
 
 `shortId` = first 8 alphanumeric characters of `session_id`; falls back to `unknown` if `session_id` is missing. Multi-session concurrent writes use session ID for isolation, no symlinks. `LOCUS_PRECOMPACT_KEEP=5` (default 5) historical copies retained.
 
@@ -319,7 +319,7 @@ last_failed_bash:    # only present when last Bash result was is_error: true
     <verbatim error text, max 24 lines>
 ---
 
-# HANDOFF (Sonnet 4.6 schema)
+# HANDOFF (Sonnet schema)
 
 ## Decisions       — one decision + Why (rationale, including alternatives weighed)
 ## Ruled Out       — one approach + Reason (verbatim error / quoted denial, never paraphrase)
@@ -362,7 +362,7 @@ last_failed_bash:
         step_up_totp_test.go:63: expected 200, got 401
 ---
 
-# HANDOFF (Sonnet 4.6 schema)
+# HANDOFF (Sonnet schema)
 
 > Schema handoff (orthogonal to auto-compact summary). Both will be in context — treat as additive, not duplicative. The compact summary owns narrative; this file owns structured state. Verify env-state in frontmatter (branch, dirty files) matches reality before acting.
 
@@ -470,7 +470,7 @@ Hooks are declared in `hooks/hooks.json` and auto-registered by Claude Code's pl
 > Full source too long (~550 lines) to inline. Canonical version at `hooks/pre-compact.mjs`. This section lists design highlights only.
 
 **Dual-path model:**
-- **Path A (preferred):** Pre-digest JSONL transcript (cap 80K chars) → pipe digest + HANDOFF_INSTRUCTION to `claude -p --model claude-sonnet-4-6` (cost cap $1.50, internal 90s timer). Sonnet returns schema 6-section HANDOFF
+- **Path A (preferred):** Pre-digest JSONL transcript (cap 80K chars) → pipe digest + HANDOFF_INSTRUCTION to `claude -p --model sonnet --effort xhigh` (internal 90s timer). Sonnet returns schema 6-section HANDOFF
 - **Path B (fallback):** Sonnet timeout / non-zero exit / empty stdout / output < 200 chars — any of these → degrade to mechanical extract (pure transcript dump)
 - **Always `exit 0`** — never block compaction
 
@@ -539,10 +539,10 @@ Optional env vars:
 
 ### 7.5 Design Rationale
 
-**Why Sonnet 4.6, not Opus:**
+**Why Sonnet, not Opus:**
 - Opus for PreCompact is too expensive; this is "retroactively produce a summary," doesn't need top-tier intelligence
-- Sonnet 4.6 on 80K digest reliably produces 6-section HANDOFF (13–21s wall-clock)
-- $1.50 cost cap + 90s timeout dual brake
+- Sonnet on 80K digest reliably produces 6-section HANDOFF (13–21s wall-clock)
+- 90s timeout brake
 
 **Why pre-digest the transcript instead of feeding raw JSONL:**
 - Raw JSONL is routinely multiple MB, feeding it directly blows up Sonnet input
@@ -698,7 +698,7 @@ Working (tokens accumulating)
   (because CLAUDE_CODE_AUTO_COMPACT_WINDOW=320000 is manually set)
   ↓
 PreCompact hook activates (matcher: "auto"):
-  ↓ Path A: Sonnet 4.6 pre-digests transcript → 6-section schema HANDOFF
+  ↓ Path A: Sonnet pre-digests transcript → 6-section schema HANDOFF
   ↓ Path B (on failure): mechanical extract from transcript dump
   ↓
 Writes to .claude/HANDOFF-{shortId}.md

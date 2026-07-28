@@ -53,7 +53,7 @@ Findings from https://github.com/anthropics/claude-code/issues:
 | Component | Role |
 |---|---|
 | `CLAUDE_CODE_AUTO_COMPACT_WINDOW=320000` | env in `~/.claude/settings.json` |
-| `PreCompact` hook (`hooks/pre-compact.mjs`) | Sonnet 4.6 dual-path → HANDOFF-{shortId}.md (best-effort) |
+| `PreCompact` hook (`hooks/pre-compact.mjs`) | Sonnet dual-path → HANDOFF-{shortId}.md (best-effort) |
 | `PostCompact` hook (`hooks/post-compact.mjs`) | Selective HANDOFF reload into additionalContext |
 | `bin/claude-compact` | CLI: read compact summaries + HANDOFF from completed sessions |
 
@@ -105,7 +105,7 @@ claude-compact/
 
 ```json
 {
-  "description": "PreCompact: write structured HANDOFF via Sonnet 4.6 (mechanical fallback on failure). PostCompact: selectively reload orthogonal sections into additionalContext.",
+  "description": "PreCompact: write structured HANDOFF via Sonnet (mechanical fallback on failure). PostCompact: selectively reload orthogonal sections into additionalContext.",
   "hooks": {
     "PreCompact": [
       {
@@ -115,7 +115,7 @@ claude-compact/
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-compact.mjs\"",
             "timeout": 120,
-            "statusMessage": "Writing HANDOFF-{shortId}.md before auto-compact (Sonnet 4.6, ≤90s)..."
+            "statusMessage": "Writing HANDOFF-{shortId}.md before auto-compact (Sonnet, ≤90s)..."
           }
         ]
       }
@@ -144,7 +144,7 @@ claude-compact/
 
 ### 4.2 Dual-Path Model
 
-**Path A (preferred):** Parse JSONL transcript → build digest (cap 80K chars) → pipe digest + instruction to `claude -p --model claude-sonnet-4-6` (cost cap $1.50, internal 90s timeout). Sonnet returns structured HANDOFF with 6 sections.
+**Path A (preferred):** Parse JSONL transcript → build digest (cap 80K chars) → pipe digest + instruction to `claude -p --model sonnet --effort xhigh` (internal 90s timeout). Sonnet returns structured HANDOFF with 6 sections.
 
 **Path B (fallback):** On Sonnet timeout / non-zero exit / empty stdout / output < 200 chars → mechanical extract directly from transcript (last 30 user messages, last 50 file touches, TodoWrite snapshot).
 
